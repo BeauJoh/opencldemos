@@ -13,3 +13,6 @@ all:	c_cwt
 c_cwt: $(SOURCE_C_FILES)
 	$(CC) $(SOURCE_C_FILES) $(CFLAGS) -o c_cwt $(CCLIBS)
 
+clean:
+	rm c_cwt
+
