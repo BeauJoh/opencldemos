@@ -546,7 +546,15 @@ int main(int argc, char** argv)
         printf("there was an error reading data from memory buffer(cwt)!\n");
         return EXIT_FAILURE;
     }; 
-    
+    //write result back to file
+    FILE* file_handle = fopen("cwt_result.dat","w");
+    for(int i = 0; i < cwt_cols; i++){
+        for(int j = 0; j < signal_length; j++){
+            fprintf(file_handle,"%f ",cwt_data[i*cwt_cols + j]);
+        }
+        fprintf(file_handle,"\n");
+    }
+
     //cleanup
     clReleaseMemObject(fx_buffer);
     clReleaseMemObject(a_buffer);
