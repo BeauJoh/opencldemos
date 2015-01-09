@@ -2,7 +2,7 @@ UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 	CCLIBS += -framework OpenCL
 else
-	CCLIBS += -lOpenCL 
+	CCLIBS += -lOpenCL -lm 
 	CFLAGS += -std=gnu99
 endif
 

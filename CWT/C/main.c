@@ -126,6 +126,8 @@ int main(int argc, char** argv)
                            NULL);              //num_devices
             //for each device print some of its details:
             for(int j = 0; j < number_of_devices; j++){
+                printf("\t\tdevice no. %i\n",j);
+
                 //print the name
                 char my_device_name[total_buffer_length];
                 length_of_buffer_used = 0;
@@ -152,6 +154,7 @@ int main(int argc, char** argv)
                 for(int k = 0; k < length_of_buffer_used; k++){
                     printf("%c",my_device_vendor[k]);
                 }
+                printf("\n");
                 printf("\n");
             }
             printf("\n");
@@ -254,7 +257,7 @@ int main(int argc, char** argv)
     
     const float pi = 4*atan(1);
     
-   //where x ranges from 0 to 1 by 1/8192 increments
+   //where x ranges from 0 to 1 by 1/signal_lenght increments
     fx_data = malloc(sizeof(float)*signal_length);
     float increment_size = (1.0f/signal_length);
     int i = 0;
@@ -264,7 +267,7 @@ int main(int argc, char** argv)
             2*sin(160*pi*x)*exp(-100*pi*pow(x-0.8,2));
         i++;
     }
-    //where a(scales) range from 0.01f to 0.10f by 0.10/8192
+    //where a(scales) range from 0.01f to 0.10f by 0.10/signal_length increment
     a_data = malloc(sizeof(float)*signal_length);
     increment_size = (0.10f/signal_length);
     i = 0;
@@ -273,7 +276,7 @@ int main(int argc, char** argv)
         i++;
     }
 
-    //where b(times) range from -1 to 1 by 2/8192
+    //where b(times) range from -1 to 1 by 2/signal_length increments
     b_data = malloc(sizeof(float)*signal_length);
     increment_size = (2.0f/signal_length);
     i = 0;
@@ -316,10 +319,10 @@ int main(int argc, char** argv)
     size_t kernel_source_length = ftell(my_file_handle);
     char* my_kernel_source = malloc(sizeof(char)*(kernel_source_length+1)); 
     rewind(my_file_handle);
-    fread(my_kernel_source,   //ptr
+    fread(my_kernel_source,    //ptr
           sizeof(char),        //size
           kernel_source_length,//count
-          my_file_handle);               //stream
+          my_file_handle);     //stream
     fclose(my_file_handle);
     my_kernel_source[kernel_source_length] = '\0';
     cl_program my_program =
