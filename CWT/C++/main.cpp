@@ -3,6 +3,8 @@
 #define __CL_ENABLE_EXCEPTIONS
 #include "cl.hpp"
 #include <iostream>
+#include <fstream>
+#include <streambuf>
 #include <string>
 #include <cmath>
 #include <cstdlib>//for atoi
@@ -175,6 +177,54 @@ int main(int argc,char* argv[])
 
     //and cwt_data is a square matrix (but actually squashed into a 1d array)
     cwt_data = new float[signal_length * signal_length];
+
+    /**************************************************************************
+     * OpenCL host runtime layer 
+     *************************************************************************/
+    
+    //get context (from undocumented sources [the example in cl.hpp] 
+    //cl_context_properties my_properties[] =
+    //    {CL_CONTEXT_PROPERTIES,
+    //     (cl_context_properties)(my_platform)(),
+    //     (cl_context_properties)(my_device)};
+    //cl::Context my_context(CL_DEVICE_TYPE_ALL,my_properties);
+    
+    //this is redundant! Why can a context only accept a vector of devices
+    //instead of a singular device? So the unelegant solution is to just use
+    //a vector as an intemdiate mechanism :(
+    cl::vector<cl::Device> temp_device_vector;
+    temp_device_vector.push_back(my_device);
+    cl::Context my_context(temp_device_vector);
+   
+    //create command queue 
+    cl::CommandQueue my_command_queue(my_context,my_device);
+   
+    //load and compile kernel
+    std::string my_kernel_source;
+    std::ifstream my_file_stream;
+    my_file_stream.open("../kernels/cwt.cl");
+    if(my_file_stream){
+       my_kernel_source =
+           std::string(std::istreambuf_iterator<char>(my_file_stream),
+                       std::istreambuf_iterator<char>()); 
+    }else{
+        std::cout << "there was an error reading the source kernel!"
+                  << std::endl;
+        return EXIT_FAILURE;
+    }
+  
+    //there is an unusual typedef which means we must convert from a string to
+    //a c_string :/
+    std::pair<const char*, size_t> my_source_paired;
+    my_source_paired.first = my_kernel_source.c_str();
+    my_source_paired.second = my_kernel_source.length()+1; 
+
+    cl::Program::Sources my_source(1, my_source_paired);
+    cl::Program my_program(my_context, my_source);
+    my_program.build(temp_device_vector);//again we can't just pass one
+    //cl::Device and instead we need a cl::vector<cl::Device>. (facepalm)
+
+    cl::Kernel my_kernel(my_program,"ContinuousWaveletTransform");
 
     return EXIT_SUCCESS;
 }
