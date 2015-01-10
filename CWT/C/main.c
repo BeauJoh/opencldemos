@@ -257,7 +257,7 @@ int main(int argc, char** argv)
     
     const float pi = 4*atan(1);
     
-   //where x ranges from 0 to 1 by 1/signal_lenght increments
+    //where x ranges from 0 to 1 by 1/signal_length increments
     fx_data = malloc(sizeof(float)*signal_length);
     float increment_size = (1.0f/signal_length);
     int i = 0;

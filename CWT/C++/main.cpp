@@ -129,6 +129,52 @@ int main(int argc,char* argv[])
     /**************************************************************************
      * generate input signal (application specific) 
      *************************************************************************/
+    float* fx_data; //input signal
+    float* a_data;  //discrete range of scales
+    float* b_data;  //discrete range of times
+    float* cwt_data;//space for results
+    unsigned int fx_length,a_length,b_length,cwt_length;//length of each array
+    unsigned int cwt_cols;//number of columns
+    
+    unsigned int signal_length = 128;
+    fx_length = signal_length;//this is the simplest case (a full cwt)
+    a_length  = signal_length;
+    b_length  = signal_length;  
+    cwt_length= signal_length*signal_length;
+    cwt_cols  = signal_length;
+    
+    const float pi = 4*atan(1);
+    //where x ranges from 0 to 1 by 1/signal_length increments
+    fx_data = new float[signal_length];
+    float increment_size = (1.0f/signal_length);
+    int i = 0; 
+    for(float x = 0.0f; x < 1.0f; x+=increment_size){
+        fx_data[i] = sin(40*pi*x)*exp(-100*pi*pow(x-2,2))+
+            (sin(40*pi*x)+2*cos(160*pi*x))*exp(-50*pi*pow(x-0.5f,2))+
+            2*sin(160*pi*x)*exp(-100*pi*pow(x-0.8,2));
+        i++; 
+    }
+
+    //where a(scales) range from 0.01f to 0.10f by 0.10/signal_length increment
+    a_data = new float[signal_length];
+    i = 0;
+    increment_size = (0.10f/signal_length);
+    for(float x = 0.01f; x < 0.10f; x += increment_size){
+        a_data[i] = x;
+        i++;
+    }
+   
+    //where b(times) range from -1 to 1 by 2/signal_length increments
+    b_data = new float[signal_length];
+    i = 0;
+    increment_size = (2.0f/signal_length);
+    for(float x = -1.0f; x < 1.0f; x += increment_size){
+        b_data[i] = x;
+        i++;
+    }
+
+    //and cwt_data is a square matrix (but actually squashed into a 1d array)
+    cwt_data = new float[signal_length * signal_length];
 
     return EXIT_SUCCESS;
 }
