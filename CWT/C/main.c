@@ -358,71 +358,35 @@ int main(int argc, char** argv)
     
     //generate memory buffers
     cl_mem fx_buffer = clCreateBuffer(my_context,              //context
-                                      CL_MEM_READ_ONLY,        //flags
+                                      CL_MEM_READ_ONLY
+                                      &CL_MEM_USE_HOST_PTR,    //flags
                                       sizeof(float)*fx_length, //size
-                                      NULL,                    //host_ptr
+                                      fx_data,                 //host_ptr
                                       &error_id);              //errcode_ret
     if(error_id != CL_SUCCESS){
         printf("there was an error creating memory buffer(fx)!\n");
         return EXIT_FAILURE;
     }
-    error_id = clEnqueueWriteBuffer(my_queue, //command_queue
-                                    fx_buffer,//buffer
-                                    CL_FALSE, //blocking_write
-                                    0,        //offset
-                                    sizeof(float)*fx_length,//size
-                                    fx_data,  //host_ptr
-                                    NULL,     //number_of_events_in_wait_list
-                                    NULL,     //wait_list
-                                    NULL);    //event
-    if(error_id != CL_SUCCESS){
-        printf("there was an error writing data to memory buffer(fx)!\n");
-        return EXIT_FAILURE;
-    }
     
     cl_mem a_buffer = clCreateBuffer(my_context,              //context
-                                     CL_MEM_READ_ONLY,        //flags
+                                     CL_MEM_READ_ONLY
+                                     &CL_MEM_USE_HOST_PTR,    //flags
                                      sizeof(float)*a_length,  //size
-                                     NULL,                    //host_ptr
+                                     a_data,                  //host_ptr
                                      &error_id);              //errcode_ret
     if(error_id != CL_SUCCESS){
         printf("there was an error creating memory buffer(a)!\n");
         return EXIT_FAILURE;
     }
-    error_id = clEnqueueWriteBuffer(my_queue, //command_queue
-                                    a_buffer, //buffer
-                                    CL_FALSE, //blocking_write
-                                    0,        //offset
-                                    sizeof(float)*a_length,//size
-                                    a_data,   //host_ptr
-                                    NULL,     //number_of_events_in_wait_list
-                                    NULL,     //wait_list
-                                    NULL);    //event
-    if(error_id != CL_SUCCESS){
-        printf("there was an error writing data to memory buffer(a)!\n");
-        return EXIT_FAILURE;
-    }
     
     cl_mem b_buffer = clCreateBuffer(my_context,              //context
-                                     CL_MEM_READ_ONLY,        //flags
+                                     CL_MEM_READ_ONLY
+                                     &CL_MEM_USE_HOST_PTR,    //flags
                                      sizeof(float)*b_length,  //size
-                                     NULL,                    //host_ptr
+                                     b_data,                  //host_ptr
                                      &error_id);              //errcode_ret
     if(error_id != CL_SUCCESS){
         printf("there was an error creating memory buffer(b)!\n");
-        return EXIT_FAILURE;
-    }
-    error_id = clEnqueueWriteBuffer(my_queue, //command_queue
-                                    b_buffer, //buffer
-                                    CL_FALSE, //blocking_write
-                                    0,        //offset
-                                    sizeof(float)*b_length,//size
-                                    b_data,   //host_ptr
-                                    NULL,     //number_of_events_in_wait_list
-                                    NULL,     //wait_list
-                                    NULL);    //event
-    if(error_id != CL_SUCCESS){
-        printf("there was an error writing data to memory buffer(b)!\n");
         return EXIT_FAILURE;
     }
 
@@ -532,29 +496,30 @@ int main(int argc, char** argv)
     //wait for kernel to finish
     clFlush(my_queue);
 
-    //read the result back (from accelerator)
-    error_id = clEnqueueReadBuffer(my_queue,  //command_queue
-                                   cwt_buffer,//buffer
-                                   CL_FALSE,  //blocking_read
-                                   0,         //offset
-                                   sizeof(float)*cwt_length,//size
-                                   cwt_data,  //host_ptr
-                                   NULL,      //number_of_events_in_wait_list
-                                   NULL,      //wait_list
-                                   NULL);     //event
+    //get result and write it to file
+    error_id = clEnqueueReadBuffer(my_queue,        //command_queue
+                                   cwt_buffer,      //buffer
+                                   CL_FALSE,        //blocking_read
+                                   0,               //offset
+                                   sizeof(unsigned int)*cwt_length,//size
+                                   cwt_data,        //ptr
+                                   NULL,            //num_events_in_wait_list
+                                   NULL,            //event_wait_list
+                                   NULL);//event
+
     if(error_id != CL_SUCCESS){
-        printf("there was an error reading data from memory buffer(cwt)!\n");
+        printf("there was an error reading memory buffer (cwt)!\n");
         return EXIT_FAILURE;
-    }; 
-    
-    //write result back to file
-    FILE* file_handle = fopen("cwt_result.dat","w");
+    }
+
+    FILE* file_output_handle = fopen("cwt_result.dat", "w");
     for(int i = 0; i < cwt_cols; i++){
         for(int j = 0; j < signal_length; j++){
-            fprintf(file_handle,"%f ",cwt_data[i*cwt_cols + j]);
+            fprintf(file_output_handle, "%f ", cwt_data[i*cwt_cols+j]);
         }
-        fprintf(file_handle,"\n");
+        fprintf(file_output_handle, "\n");
     }
+    fclose(file_output_handle);
 
     //cleanup
     clReleaseMemObject(fx_buffer);

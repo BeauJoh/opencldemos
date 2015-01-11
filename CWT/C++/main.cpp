@@ -176,7 +176,7 @@ int main(int argc,char* argv[])
     }
 
     //and cwt_data is a square matrix (but actually squashed into a 1d array)
-    cwt_data = new float[signal_length * signal_length];
+    cwt_data = new float[cwt_length];
 
     /**************************************************************************
      * OpenCL host runtime layer 
@@ -212,7 +212,8 @@ int main(int argc,char* argv[])
                   << std::endl;
         return EXIT_FAILURE;
     }
-  
+    my_file_stream.close();
+
     //there is an unusual typedef which means we must convert from a string to
     //a c_string :/
     std::pair<const char*, size_t> my_source_paired;
@@ -225,6 +226,66 @@ int main(int argc,char* argv[])
     //cl::Device and instead we need a cl::vector<cl::Device>. (facepalm)
 
     cl::Kernel my_kernel(my_program,"ContinuousWaveletTransform");
+
+    //generate memory buffers
+    cl::Buffer fx_buffer(my_context,                          //context
+                         CL_MEM_READ_ONLY&CL_MEM_USE_HOST_PTR,//flags
+                         sizeof(float)*fx_length);            //size
+    cl::Buffer a_buffer(my_context,                           //context
+                        CL_MEM_READ_ONLY&CL_MEM_USE_HOST_PTR, //flags
+                        sizeof(float)*a_length);              //size
+    cl::Buffer b_buffer(my_context,                           //context
+                        CL_MEM_READ_ONLY&CL_MEM_USE_HOST_PTR, //flags
+                        sizeof(float)*b_length);              //size
+    cl::Buffer cwt_buffer(my_context,                         //context
+                          CL_MEM_WRITE_ONLY,                  //flags
+                          sizeof(float)*cwt_length);          //size
+   
+    //set kernel arguments
+    my_kernel.setArg(0,        //index
+                    fx_buffer);//value 
+    my_kernel.setArg(1,                   //index
+                     sizeof(unsigned int),//size
+                     &fx_length);         //argPtr
+    my_kernel.setArg(2,a_buffer);
+    my_kernel.setArg(3,sizeof(unsigned int),&a_length);
+    my_kernel.setArg(4,b_buffer);
+    my_kernel.setArg(5,sizeof(unsigned int),&b_length);
+    my_kernel.setArg(6,cwt_buffer);
+    my_kernel.setArg(7,sizeof(unsigned int),&cwt_cols);
+
+    //execute the kernel
+    //cl::NDRange can be multi-dimensional (0) or (0,0) or (0,0,0)
+    my_command_queue.enqueueNDRangeKernel(my_kernel,                 //kernel
+                                          cl::NDRange(0),            //offset
+                                          cl::NDRange(signal_length),//global
+                                          cl::NDRange(1));           //local 
+   
+    //wait for kernel to finish
+    my_command_queue.finish();
+
+    //get result and write it to file
+    my_command_queue.enqueueReadBuffer(cwt_buffer,              //buffer
+                                       CL_TRUE,                 //blocking
+                                       0,                       //offset
+                                       sizeof(float)*cwt_length,//size
+                                       cwt_data);               //ptr 
+
+    std::ofstream my_result_stream; 
+    my_result_stream.open("cwt_result.dat");
+    for(unsigned int i = 0; i < cwt_cols; i++){
+       for(unsigned int j = 0; j < signal_length; j++){
+           my_result_stream << cwt_data[i*cwt_cols + j] << " "; 
+       }
+       my_result_stream << "\n";
+    }
+    my_result_stream.close();
+
+    //cleanup
+    delete[] fx_data; 
+    delete[] a_data;  
+    delete[] b_data;  
+    delete[] cwt_data;
 
     return EXIT_SUCCESS;
 }
