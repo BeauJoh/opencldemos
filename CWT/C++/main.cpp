@@ -222,7 +222,25 @@ int main(int argc,char* argv[])
 
     cl::Program::Sources my_source(1, my_source_paired);
     cl::Program my_program(my_context, my_source);
-    my_program.build(temp_device_vector);//again we can't just pass one
+
+    //if device is a CPU or GPU set granulatity of parallelism accordingly see:
+    //http://mirror.linux.org.au/linux.conf.au/2014/Thursday/88-OpenCL_saving_parallel_programers_pain_today_-_Beau_Johnston.mp4
+    cl_device_type my_device_type;
+    my_device.getInfo(CL_DEVICE_TYPE,&my_device_type); 
+    
+    const char* my_compiler_flags;
+    if(my_device_type == CL_DEVICE_TYPE_CPU){
+        my_compiler_flags =
+            static_cast<const char*>("-DSCALE_LOOP_PARALLELISM");
+    }else{
+        //gpu or accellerator
+        my_compiler_flags =
+            static_cast<const char*>("-DSCALE_LOOP_PARALLELISM\
+                                      -DTRANSLATION_LOOP_PARALLELISM");
+    }
+
+    my_program.build(temp_device_vector,
+                     my_compiler_flags);//again we can't just pass one
     //cl::Device and instead we need a cl::vector<cl::Device>. (facepalm)
 
     cl::Kernel my_kernel(my_program,"ContinuousWaveletTransform");
@@ -260,12 +278,32 @@ int main(int argc,char* argv[])
     my_kernel.setArg(6,cwt_buffer);
     my_kernel.setArg(7,sizeof(unsigned int),&cwt_cols);
 
+    //predict an optimal workload according to available cores on target device
+    cl_uint my_core_count; 
+    my_device.getInfo(CL_DEVICE_MAX_COMPUTE_UNITS,&my_core_count);
+    cl::NDRange my_offset,my_global_workgroup_size,my_local_workgroup_size;  
+    if(my_device_type == CL_DEVICE_TYPE_CPU){
+        my_offset = cl::NDRange(0);
+        my_global_workgroup_size = cl::NDRange(a_length);//scale
+        my_local_workgroup_size = cl::NDRange(a_length/my_core_count);
+    }else{//gpu
+        my_offset = cl::NDRange(0);
+        my_global_workgroup_size = cl::NDRange(a_length,b_length);//scale &
+                                                                  //translation
+        size_t warp_size = 32;
+        if(b_length%warp_size != 0){
+            my_local_workgroup_size = cl::NDRange(1,b_length/my_core_count);
+        }else{
+            my_local_workgroup_size = cl::NDRange(1,warp_size);
+        }
+    }
+    
     //execute the kernel
     //cl::NDRange can be multi-dimensional (0) or (0,0) or (0,0,0)
-    my_command_queue.enqueueNDRangeKernel(my_kernel,                 //kernel
-                                          cl::NDRange(0),            //offset
-                                          cl::NDRange(signal_length),//global
-                                          cl::NDRange(1));           //local 
+    my_command_queue.enqueueNDRangeKernel(my_kernel,                //kernel
+                                          my_offset,                //offset
+                                          my_global_workgroup_size, //global
+                                          my_local_workgroup_size); //local 
    
     //wait for kernel to finish
     my_command_queue.finish();
