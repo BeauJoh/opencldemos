@@ -269,7 +269,7 @@ int main(int argc, char** argv)
     }
     //where a(scales) range from 0.01f to 0.10f by 0.10/signal_length increment
     a_data = malloc(sizeof(float)*signal_length);
-    increment_size = (0.10f/signal_length);
+    increment_size = (0.10f-0.01f)/(float)signal_length;
     i = 0;
     for(float x = 0.01f; x < 0.10f; x+=increment_size){
         a_data[i] = x;
@@ -284,7 +284,12 @@ int main(int argc, char** argv)
         b_data[i] = x;
         i++;
     }
-    
+   
+    for(int i = 0; i < signal_length; i++){
+        //printf("fx[%i] = %f\n",i,fx_data[i]);
+        printf("a[%i] = %f\n",i,a_data[i]);
+        //printf("b[%i] = %f\n",i,b_data[i]);
+    } 
     //and cwt_data is a square matrix (but actually squashed into a 1d array)
     cwt_data = malloc(sizeof(float)*signal_length*signal_length);
 
