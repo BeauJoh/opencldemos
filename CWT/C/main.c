@@ -285,11 +285,6 @@ int main(int argc, char** argv)
         i++;
     }
    
-    for(int i = 0; i < signal_length; i++){
-        //printf("fx[%i] = %f\n",i,fx_data[i]);
-        printf("a[%i] = %f\n",i,a_data[i]);
-        //printf("b[%i] = %f\n",i,b_data[i]);
-    } 
     //and cwt_data is a square matrix (but actually squashed into a 1d array)
     cwt_data = malloc(sizeof(float)*signal_length*signal_length);
 
