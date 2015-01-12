@@ -160,7 +160,7 @@ int main(int argc,char* argv[])
     //where a(scales) range from 0.01f to 0.10f by 0.10/signal_length increment
     a_data = new float[signal_length];
     i = 0;
-    increment_size = (0.10f/signal_length);
+    increment_size = ((0.10f-0.01f)/signal_length);
     for(float x = 0.01f; x < 0.10f; x += increment_size){
         a_data[i] = x;
         i++;
@@ -228,18 +228,24 @@ int main(int argc,char* argv[])
     cl::Kernel my_kernel(my_program,"ContinuousWaveletTransform");
 
     //generate memory buffers
-    cl::Buffer fx_buffer(my_context,                          //context
-                         CL_MEM_READ_ONLY&CL_MEM_USE_HOST_PTR,//flags
-                         sizeof(float)*fx_length);            //size
-    cl::Buffer a_buffer(my_context,                           //context
-                        CL_MEM_READ_ONLY&CL_MEM_USE_HOST_PTR, //flags
-                        sizeof(float)*a_length);              //size
-    cl::Buffer b_buffer(my_context,                           //context
-                        CL_MEM_READ_ONLY&CL_MEM_USE_HOST_PTR, //flags
-                        sizeof(float)*b_length);              //size
-    cl::Buffer cwt_buffer(my_context,                         //context
-                          CL_MEM_WRITE_ONLY,                  //flags
-                          sizeof(float)*cwt_length);          //size
+    cl::Buffer fx_buffer(my_context,                 //context
+                         CL_MEM_READ_ONLY
+                         |CL_MEM_USE_HOST_PTR,       //flags
+                         sizeof(float)*fx_length,    //size
+                         fx_data);                   //ptr
+    cl::Buffer a_buffer(my_context,                  //context
+                        CL_MEM_READ_ONLY|
+                        CL_MEM_USE_HOST_PTR,         //flags
+                        sizeof(float)*a_length,      //size
+                        a_data);                     //ptr
+    cl::Buffer b_buffer(my_context,                  //context
+                        CL_MEM_READ_ONLY
+                        |CL_MEM_USE_HOST_PTR,        //flags
+                        sizeof(float)*b_length,      //size
+                        b_data);                     //ptr
+    cl::Buffer cwt_buffer(my_context,                //context
+                          CL_MEM_WRITE_ONLY,         //flags
+                          sizeof(float)*cwt_length); //size
    
     //set kernel arguments
     my_kernel.setArg(0,        //index
