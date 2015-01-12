@@ -336,12 +336,36 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     } 
 
-    error_id = clBuildProgram(my_program,//program
-                              1,         //num_devices
-                              &my_device,//device_list
-                              "",        //compiler options
-                              NULL,      //pfn_notify
-                              NULL);     //user_data 
+    //if device is a CPU or GPU set granulatity of parallelism accordingly see:
+    //http://mirror.linux.org.au/linux.conf.au/2014/Thursday/88-OpenCL_saving_parallel_programers_pain_today_-_Beau_Johnston.mp4
+    cl_device_type my_device_type; 
+    clGetDeviceInfo(my_device,              //device
+                    CL_DEVICE_TYPE,         //param_name
+                    sizeof(cl_device_type), //param_value_size
+                    &my_device_type,        //param_value
+                    NULL);                  //param_value_size_ret
+    char* my_compiler_flags;
+    if(my_device_type == CL_DEVICE_TYPE_CPU){
+        //CPUs better resond to having a few heavyweight threads
+        //you should query the device for how many cores it has then use that
+        //many threads (or a few more)
+        my_compiler_flags = (char*)"-DSCALE_LOOP_PARALLELISM";
+    }else if(my_device_type == CL_DEVICE_TYPE_GPU){
+        //GPUs need more threads to be effective
+        my_compiler_flags = (char*)"-DSCALE_LOOP_PARALLELISM \
+                                    -DTRANSLATION_LOOP_PARALLELISM";
+    }else if(my_device_type == CL_DEVICE_TYPE_ACCELERATOR){
+        //this is a tough one to pick what granularity of parallelism we need
+        //(why not guess according to core count)
+        my_compiler_flags = (char*)"-DSCALE_LOOP_PARALLELISM";
+    }
+
+    error_id = clBuildProgram(my_program,       //program
+                              1,                //num_devices
+                              &my_device,       //device_list
+                              my_compiler_flags,//compiler options
+                              NULL,             //pfn_notify
+                              NULL);            //user_data 
     if(error_id != CL_SUCCESS){
         printf("there was an error building the program!\n");
         return EXIT_FAILURE;
@@ -356,10 +380,10 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     
-    //generate memory buffers
+    //generate and populate memory buffers
     cl_mem fx_buffer = clCreateBuffer(my_context,              //context
                                       CL_MEM_READ_ONLY
-                                      &CL_MEM_USE_HOST_PTR,    //flags
+                                      |CL_MEM_USE_HOST_PTR,    //flags
                                       sizeof(float)*fx_length, //size
                                       fx_data,                 //host_ptr
                                       &error_id);              //errcode_ret
@@ -370,7 +394,7 @@ int main(int argc, char** argv)
     
     cl_mem a_buffer = clCreateBuffer(my_context,              //context
                                      CL_MEM_READ_ONLY
-                                     &CL_MEM_USE_HOST_PTR,    //flags
+                                     |CL_MEM_USE_HOST_PTR,    //flags
                                      sizeof(float)*a_length,  //size
                                      a_data,                  //host_ptr
                                      &error_id);              //errcode_ret
@@ -381,7 +405,7 @@ int main(int argc, char** argv)
     
     cl_mem b_buffer = clCreateBuffer(my_context,              //context
                                      CL_MEM_READ_ONLY
-                                     &CL_MEM_USE_HOST_PTR,    //flags
+                                     |CL_MEM_USE_HOST_PTR,    //flags
                                      sizeof(float)*b_length,  //size
                                      b_data,                  //host_ptr
                                      &error_id);              //errcode_ret
@@ -473,17 +497,49 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     
+    //Get the number of cores (to guess how many threads we need for running
+    //the kernel on the current device) 
+    cl_uint my_core_count;
+    clGetDeviceInfo(my_device,                  //device
+                    CL_DEVICE_MAX_COMPUTE_UNITS,//param_name
+                    sizeof(cl_uint),            //param_value_size
+                    &my_core_count,             //param_value
+                    NULL);                      //param_value_size_ret
+
     //execute the kernel
-    size_t global_work_offset[3] = {0,0,0};
-    size_t global_work_size[3] = {signal_length,0,0};
-    size_t local_work_size[3] = {1,0,0};
-    
+    size_t my_work_dim;
+    size_t* global_work_offset;
+    size_t* global_work_size;
+    size_t* local_work_size;
+
+    if(my_device_type == CL_DEVICE_TYPE_CPU){
+        my_work_dim = 1;//one dim for scale. Less parallelism on a CPU.
+        global_work_offset = (size_t*)malloc(sizeof(size_t)*my_work_dim);
+        global_work_size   = (size_t*)malloc(sizeof(size_t)*my_work_dim);
+        local_work_size    = (size_t*)malloc(sizeof(size_t)*my_work_dim);
+        global_work_offset = 0;
+        global_work_size[0]= a_length;
+        local_work_size[0] = a_length/my_core_count;
+    }else{
+        my_work_dim = 2;//one dim for scale and one for translation
+        //(see kernel). We do this as the GPU needs more parallelism.
+        global_work_offset = (size_t*)malloc(sizeof(size_t)*my_work_dim);
+        global_work_size   = (size_t*)malloc(sizeof(size_t)*my_work_dim);
+        local_work_size    = (size_t*)malloc(sizeof(size_t)*my_work_dim);
+        global_work_offset[0] = 0;//scale
+        global_work_offset[1] = 0;//translation
+        global_work_size[0]= a_length;//scale
+        global_work_size[1]= b_length;//translation
+        local_work_size[0] = a_length/my_core_count;//scale
+        local_work_size[1] = b_length/my_core_count;//translation
+    }
+
     error_id = clEnqueueNDRangeKernel(my_queue,//command_queue
                                       my_kernel,//kernel
-                                      1,        //work_dim
-                                      &global_work_offset,//global_work_offset
-                                      &global_work_size,
-                                      &local_work_size,
+                                      my_work_dim,        //work_dim
+                                      global_work_offset,//global_work_offset
+                                      global_work_size,
+                                      local_work_size,
                                       NULL,      //number_of_events_in_wait_list
                                       NULL,      //wait_list
                                       NULL);     //event
@@ -499,7 +555,7 @@ int main(int argc, char** argv)
     //get result and write it to file
     error_id = clEnqueueReadBuffer(my_queue,        //command_queue
                                    cwt_buffer,      //buffer
-                                   CL_FALSE,        //blocking_read
+                                   CL_TRUE,         //blocking_read
                                    0,               //offset
                                    sizeof(unsigned int)*cwt_length,//size
                                    cwt_data,        //ptr
