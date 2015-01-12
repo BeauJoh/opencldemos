@@ -497,8 +497,8 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
     
-    //Get the number of cores (to guess how many threads we need for running
-    //the kernel on the current device) 
+    
+    //predict an optimal workload according to available cores on target device
     cl_uint my_core_count;
     clGetDeviceInfo(my_device,                  //device
                     CL_DEVICE_MAX_COMPUTE_UNITS,//param_name
@@ -506,7 +506,6 @@ int main(int argc, char** argv)
                     &my_core_count,             //param_value
                     NULL);                      //param_value_size_ret
 
-    //execute the kernel
     size_t my_work_dim;
     size_t* global_work_offset;
     size_t* global_work_size;
@@ -519,7 +518,7 @@ int main(int argc, char** argv)
         local_work_size    = (size_t*)malloc(sizeof(size_t)*my_work_dim);
         global_work_offset = 0;
         global_work_size[0]= a_length;
-        local_work_size[0] = a_length/my_core_count;
+        local_work_size[0] = global_work_size[0]/my_core_count;
     }else{
         my_work_dim = 2;//one dim for scale and one for translation
         //(see kernel). We do this as the GPU needs more parallelism.
@@ -530,10 +529,20 @@ int main(int argc, char** argv)
         global_work_offset[1] = 0;//translation
         global_work_size[0]= a_length;//scale
         global_work_size[1]= b_length;//translation
-        local_work_size[0] = a_length/my_core_count;//scale
-        local_work_size[1] = b_length/my_core_count;//translation
+        
+        cl_uint my_wavefront_size = 32;//or warp size
+        //the local work group size must evenly divide the global one
+        //if a multiple of the wavefront size doesn't do this we'll have to
+        //take a performance hit. 
+        local_work_size[0] = 1; //scale
+        if(global_work_size[1] % my_wavefront_size != 0){
+            local_work_size[1] = global_work_size[1]/my_core_count;//translation
+        }else{
+            local_work_size[1] = my_wavefront_size;//translation
+        }
     }
 
+    //execute the kernel
     error_id = clEnqueueNDRangeKernel(my_queue,//command_queue
                                       my_kernel,//kernel
                                       my_work_dim,        //work_dim
