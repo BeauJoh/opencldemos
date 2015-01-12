@@ -264,7 +264,7 @@ int main(int argc,char* argv[])
     cl::Buffer cwt_buffer(my_context,                //context
                           CL_MEM_WRITE_ONLY,         //flags
                           sizeof(float)*cwt_length); //size
-   
+
     //set kernel arguments
     my_kernel.setArg(0,        //index
                     fx_buffer);//value 
