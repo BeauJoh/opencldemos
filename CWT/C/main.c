@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 //OpenCL header files
 #if defined(__APPLE__) || defined(__MACOSX)
@@ -248,7 +249,7 @@ int main(int argc, char** argv)
     unsigned int fx_length,a_length,b_length,cwt_length;//length of each array
     unsigned int cwt_cols;//number of columns
     
-    unsigned int signal_length = 128;
+    unsigned int signal_length = 256;
     fx_length = signal_length;//this is the simplest case (a full cwt)
     a_length  = signal_length;
     b_length  = signal_length;  
@@ -542,6 +543,11 @@ int main(int argc, char** argv)
         }
     }
 
+    struct timeval stop_time;
+    struct timeval start_time; 
+
+    gettimeofday(&start_time, NULL);
+    
     //execute the kernel
     error_id = clEnqueueNDRangeKernel(my_queue,//command_queue
                                       my_kernel,//kernel
@@ -559,7 +565,11 @@ int main(int argc, char** argv)
     }
 
     //wait for kernel to finish
-    clFlush(my_queue);
+    clFinish(my_queue);
+    gettimeofday(&stop_time, NULL);
+    double elapsed_time = (stop_time.tv_sec - start_time.tv_sec) +
+      (stop_time.tv_usec - start_time.tv_usec) / 1000000.0; 
+    printf("the kernel took %f\n", elapsed_time);
 
     //get result and write it to file
     error_id = clEnqueueReadBuffer(my_queue,        //command_queue

@@ -8,6 +8,7 @@
 #include <string>
 #include <cmath>
 #include <cstdlib>//for atoi
+#include <chrono>
 
 int main(int argc,char* argv[])
 {
@@ -138,7 +139,7 @@ int main(int argc,char* argv[])
     unsigned int fx_length,a_length,b_length,cwt_length;//length of each array
     unsigned int cwt_cols;//number of columns
     
-    unsigned int signal_length = 128;
+    unsigned int signal_length = 512;
     fx_length = signal_length;//this is the simplest case (a full cwt)
     a_length  = signal_length;
     b_length  = signal_length;  
@@ -297,7 +298,8 @@ int main(int argc,char* argv[])
             my_local_workgroup_size = cl::NDRange(1,warp_size);
         }
     }
-    
+
+    const auto start_time = std::chrono::steady_clock::now();    
     //execute the kernel
     //cl::NDRange can be multi-dimensional (0) or (0,0) or (0,0,0)
     my_command_queue.enqueueNDRangeKernel(my_kernel,                //kernel
@@ -308,6 +310,10 @@ int main(int argc,char* argv[])
     //wait for kernel to finish
     my_command_queue.finish();
 
+    double time_in_seconds = 
+        std::chrono::duration_cast<std::chrono::microseconds>
+          (std::chrono::steady_clock::now() - start_time).count() / 1000000.0;
+    std::cout << "the kernel took " << time_in_seconds << std::endl; 
     //get result and write it to file
     my_command_queue.enqueueReadBuffer(cwt_buffer,              //buffer
                                        CL_TRUE,                 //blocking

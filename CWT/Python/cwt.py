@@ -1,5 +1,6 @@
 import sys              #for command line parsing
 import numpy            #for generating signals
+import time             #for measuring elapsed time (of kernel execution)
 import pyopencl as cl   #for opencl
 
 ###############################################################################
@@ -72,11 +73,11 @@ my_device = my_devices[target_device_id]
 ###############################################################################
 # generate input signals
 ###############################################################################
-signal_length = 128
+signal_length = 2**8
 fx = numpy.arange(0.0, 1.0, 1.0/signal_length).astype(numpy.float32)
 a = numpy.arange(0.01, 0.10, (0.10-0.01)/signal_length).astype(numpy.float32)
 b = numpy.arange(-1.0, 1.0, 2.0/signal_length).astype(numpy.float32)
-cwt = numpy.repeat(0,signal_length*signal_length).astype(numpy.float32)
+cwt = numpy.zeros(signal_length*signal_length).astype(numpy.float32)
 
 ###############################################################################
 #Platform layer
@@ -123,6 +124,7 @@ cwt_buffer = cl.Buffer(my_context,
 
 #predict an optimal workload according to available cores on target device
 my_core_count = my_device.get_info(cl.device_info.MAX_COMPUTE_UNITS)
+
 my_local_work = (1,)
 my_global_work = (1,)
 if my_type == cl.device_type.CPU:
@@ -136,10 +138,11 @@ else:
     else:
         my_local_work = (1,my_global_work/my_core_count)
 
+start = time.clock()
 #set arguments and execute
 my_program.ContinuousWaveletTransform(my_command_queue, #command queue
                                       my_global_work,   #global workgroup size
-                                      my_local_work,    #local workgroup size
+                                      None,             #local workgroup size
                                       fx_buffer,        #now kernel arguments
                                       numpy.uint(len(fx)),
                                       a_buffer,
@@ -150,6 +153,8 @@ my_program.ContinuousWaveletTransform(my_command_queue, #command queue
                                       numpy.uint(signal_length))
 #wait for execution
 my_command_queue.finish()
+elapsed = (time.clock() - start)
+print "kernel took", str(elapsed)
 
 #get results and write to file
 cl.enqueue_copy(my_command_queue,cwt,cwt_buffer)
