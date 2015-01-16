@@ -55,11 +55,8 @@ int main(int argc, char** argv)
                               total_buffer_length,    //param_value_size
                               &my_platform_name,      //param_value
                               &length_of_buffer_used);//param_value_size_ret
-            printf("\t\tname:\t\t");
-            for(int j = 0; j < length_of_buffer_used; j++){
-                printf("%c",my_platform_name[j]);
-            }
-            printf("\n");
+            printf("\t\tname:\t\t%*.*s\n",(int)length_of_buffer_used,
+                   (int)length_of_buffer_used, my_platform_name);
 
             //print the vendor
             char my_platform_vendor[total_buffer_length];
@@ -69,11 +66,8 @@ int main(int argc, char** argv)
                               total_buffer_length,    //param_value_size
                               &my_platform_vendor,    //param_value
                               &length_of_buffer_used);//param_value_size_ret
-            printf("\t\tvendor:\t\t");
-            for(int j = 0; j < length_of_buffer_used; j++){
-                printf("%c",my_platform_vendor[j]);
-            }
-            printf("\n");
+            printf("\t\tvendor:\t\t%*.*s\n",(int)length_of_buffer_used,
+                   (int)length_of_buffer_used,my_platform_vendor);
             
             //print the profile
             char my_platform_profile[total_buffer_length];
@@ -83,11 +77,8 @@ int main(int argc, char** argv)
                               total_buffer_length,    //param_value_size
                               &my_platform_profile,   //param_value
                               &length_of_buffer_used);//param_value_size_ret
-            printf("\t\tprofile:\t");
-            for(int j = 0; j < length_of_buffer_used; j++){
-                printf("%c",my_platform_profile[j]);
-            }
-            printf("\n");
+            printf("\t\tprofile:\t%*.*s\n",(int)length_of_buffer_used,
+                   (int)length_of_buffer_used,my_platform_profile);
             
             //print the extensions
             char my_platform_extensions[total_buffer_length];
@@ -97,11 +88,8 @@ int main(int argc, char** argv)
                               total_buffer_length,    //param_value_size
                               &my_platform_extensions,//param_value
                               &length_of_buffer_used);//param_value_size_ret
-            printf("\t\textensions:\t");
-            for(int j = 0; j < length_of_buffer_used; j++){
-                printf("%c",my_platform_extensions[j]);
-            }
-            printf("\n");
+            printf("\t\textensions:\t%*.*s\n",(int)length_of_buffer_used,
+                   (int)length_of_buffer_used, my_platform_extensions);
 
             //given this platform, how many devices are available?
             //start by getting the count of available devices
@@ -137,11 +125,8 @@ int main(int argc, char** argv)
                                 total_buffer_length,    //param_value_size
                                 &my_device_name,        //param_value
                                 &length_of_buffer_used);//param_value_size_ret
-                printf("\t\t\tname:\t\t");
-                for(int k = 0; k < length_of_buffer_used; k++){
-                    printf("%c",my_device_name[k]);
-                }
-                printf("\n");
+                printf("\t\t\tname:\t\t%*.*s\n", (int)length_of_buffer_used,
+                       (int)length_of_buffer_used, my_device_name);
 
                 //print the vendor
                 char my_device_vendor[total_buffer_length];
@@ -151,12 +136,8 @@ int main(int argc, char** argv)
                                 total_buffer_length,    //param_value_size
                                 &my_device_vendor,      //param_value
                                 &length_of_buffer_used);//param_value_size_ret
-                printf("\t\t\tvendor:\t\t");
-                for(int k = 0; k < length_of_buffer_used; k++){
-                    printf("%c",my_device_vendor[k]);
-                }
-                printf("\n");
-                printf("\n");
+                printf("\t\t\tvendor:\t\t%*.*s\n\n", (int)length_of_buffer_used,
+                       (int)length_of_buffer_used, my_device_vendor);
             }
             printf("\n");
             free(my_devices);
