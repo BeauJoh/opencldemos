@@ -1,0 +1,7 @@
+.DS_Store
+vecadd_result.dat
+target
+Cargo.lock
+*.swp
+src/*.swp
+

@@ -1,0 +1,6 @@
+.ycm_extra_conf.py
+.ycm_extra_conf.pyc
+c++_vecadd
+*.swp
+vecadd_result.dat
+

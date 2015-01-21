@@ -1,0 +1,9 @@
+[package]
+
+name = "vecadd"
+version = "0.0.1"
+authors = ["Beau Johnston <beau@inbeta.org>"]
+
+[dependencies.opencl]
+git = "https://github.com/luqmana/rust-opencl.git"
+
