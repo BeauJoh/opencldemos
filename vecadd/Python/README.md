@@ -1,11 +1,11 @@
-to install PyOpenCL follow the guide:
+To install PyOpenCL follow the guide:
     http://wiki.tiker.net/PyOpenCL/Installation
 (at the time of writing, it only runs with older versions of python [2.6])
 
-python vecadd.py <platform no.> <device no.>
+    python vecadd.py <platform no.> <device no.>
 e.g.
-python vecadd.py 0 0
+    python vecadd.py 0 0
 
-to find out available platform and device numbers, run:
-python vecadd.py
+To find out available platform and device numbers, run:
+    python vecadd.py
 
