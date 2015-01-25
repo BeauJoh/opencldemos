@@ -109,9 +109,6 @@ c_buffer = cl.Buffer(my_context,
                      cl.mem_flags.WRITE_ONLY,
                      c.nbytes)
 
-#predict an optimal workload according to available cores on target device
-my_core_count = my_device.get_info(cl.device_info.MAX_COMPUTE_UNITS)
-
 #my_local_work = (1,)
 my_global_work = (signal_length,)
 
