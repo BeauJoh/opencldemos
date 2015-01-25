@@ -7,7 +7,7 @@ import (
     "math"                              //for generating signals
     "io/ioutil"                         //for file reading (kernel source)
                                         //for measuring elapsed time
-    "github.com/willglynn/go-opencl/cl" //for opencl
+    "github.com/BeauJoh/go-opencl/cl"   //for opencl
 )
 
 func main() {
@@ -107,25 +107,25 @@ func main() {
     /**************************************************************************
      * generate input signal (application specific) 
      *************************************************************************/
-    signal_length := int(math.Pow(2,22))
+    signal_length := uint32(math.Pow(2,22))
     //a = numpy.arange(0.0, 1.0,  1.0/signal_length).astype(numpy.float32)
-    accumulated_value := 0.0
-    step_size := 1.0/float64(signal_length)
-    var a = make([]float64,signal_length)
+    accumulated_value := float32(0.0)
+    step_size := 1.0/float32(signal_length)
+    var a = make([]float32,signal_length)
     for i,_ := range a {
         a[i] = accumulated_value;
         accumulated_value += step_size;
     }
     //b = numpy.arange(1.0, 0.0, -1.0/signal_length).astype(numpy.float32)
     accumulated_value = 1.0
-    step_size = 1.0/float64(signal_length)
-    var b = make([]float64,signal_length)
+    step_size = 1.0/float32(signal_length)
+    var b = make([]float32,signal_length)
     for i,_ := range b {
         b[i] = accumulated_value;
         accumulated_value -= step_size;
     }
     //c = numpy.zeros(signal_length).astype(numpy.float32)
-    var c = make([]float64,signal_length);
+    var c = make([]float32,signal_length);
 
     /**************************************************************************
      * Platform layer 
@@ -166,12 +166,78 @@ func main() {
         fmt.Printf("Failed to build program: %+v", err)
     }
 
-    c[0] = 1;
-    
+    my_kernel, err := my_program.CreateKernel("VecAdd")
+    if err != nil {
+        fmt.Printf("Failed to create kernel: %+v", err)
+    }
+
+    //generate and populate memory buffers
+    a_buffer, err := my_context.CreateBufferFloat32(cl.MemUseHostPtr,//flag
+                                                    a               )//data
+    if err != nil {
+        fmt.Printf("Failed to create buffer (a): %+v", err)
+    }
+    b_buffer, err := my_context.CreateBufferFloat32(cl.MemUseHostPtr,//flag
+                                                    b               )//data
+    if err != nil {
+        fmt.Printf("Failed to create buffer (b): %+v", err)
+    }
+    c_buffer, err := my_context.CreateEmptyBufferFloat32(cl.MemWriteOnly,//flag
+                                                         len(c)         )//data
+    if err != nil {
+        fmt.Printf("Failed to create buffer (c): %+v", err)
+    }
+
+    //set kernel arguments 
+    err = my_kernel.SetArgBuffer(0,a_buffer)
+    if err != nil {
+        fmt.Printf("Failed to set kernel argument buffer (a): %+v", err)
+    }
+    err = my_kernel.SetArgBuffer(1,b_buffer)
+    if err != nil {
+        fmt.Printf("Failed to set kernel argument buffer (b): %+v", err)
+    }
+    err = my_kernel.SetArgBuffer(2,c_buffer)
+    if err != nil {
+        fmt.Printf("Failed to set kernel argument buffer (c): %+v", err)
+    }
+    err = my_kernel.SetArgUint32(3,signal_length)
+    if err != nil {
+        fmt.Printf("Failed to set kernel argument signal_length: %+v", err)
+    }
+
+    global_work_size := make([]int,1)
+    global_work_size[0] = int(signal_length)
+    local_work_size := make([]int,1)
+    local_work_size[0] = 1;
+
+    //execute the kernel
+    _, err = my_command_queue.EnqueueNDRangeKernel(my_kernel,          //kernel
+                                                   nil,                //offset
+                                                   global_work_size,   //global
+                                                   local_work_size,    // local
+                                                   nil)           //events list
+    if err != nil {
+        fmt.Printf("Failed to enqueue the kernel: %+v", err)
+    }
+
     //wait for execution
     err = my_command_queue.Finish()
     if err != nil {
         fmt.Printf("Failed to finish on the command queue: %+v", err)
         os.Exit(-1)
+    }
+
+    //get result and write it to file
+    _, err = my_command_queue.EnqueueReadBufferFloat32(c_buffer,   //buffer
+                                                       true,       //blocking
+                                                       0,          //offset
+                                                       c,          //data
+                                                       nil)        //event list
+    if err != nil {
+        fmt.Printf("Failed to enqueue read (c): %+v", err)
+    }
+    for _,val := range c {
+        fmt.Println(val)
     }
 }
