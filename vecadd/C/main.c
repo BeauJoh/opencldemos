@@ -430,7 +430,7 @@ int main(int argc, char** argv)
     gettimeofday(&stop_time, NULL);
     double elapsed_time = (stop_time.tv_sec - start_time.tv_sec) +
       (stop_time.tv_usec - start_time.tv_usec) / 1000000.0; 
-    printf("the kernel took %f\n", elapsed_time);
+    printf("the kernel took %f seconds.\n", elapsed_time);
 
     //get result and write it to file
     error_id = clEnqueueReadBuffer(my_queue,        //command_queue
