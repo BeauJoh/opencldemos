@@ -156,7 +156,7 @@ fn main() {
     my_kernel.set_arg(1,&b);
     my_kernel.set_arg(2,&c);
     my_kernel.set_arg(3,&signal_length);
-
+    
     //execute the kernel
     let event = my_command_queue.enqueue_async_kernel(&my_kernel,   //kernel
                                                       signal_length,//global
@@ -164,10 +164,13 @@ fn main() {
                                                       ());          //wait_on
    
     //wait for execution
-    //my_command_queue.finish();
+    //println!("kernel took {} seconds.",
+    //         (event.start_time() - event.end_time()));
     
     //get results and write to file
-    //my_command_queue.read(&c,&&c_vec[],());
-
+    c_vec = my_command_queue.get(&c,&event);
+    for i in c_vec.iter() {
+        println!("{} ",i);
+    }
     return;
 }
