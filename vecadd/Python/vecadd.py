@@ -124,7 +124,7 @@ my_program.VecAdd(my_command_queue, #command queue
 #wait for execution
 my_command_queue.finish()
 elapsed = (time.clock() - start)
-print "kernel took" , str(elapsed)
+print "kernel took" , str(elapsed), "seconds."
 
 #get results and write to file
 cl.enqueue_copy(my_command_queue,c,c_buffer)
