@@ -247,7 +247,7 @@ int main(int argc,char* argv[])
     double time_in_seconds = 
         std::chrono::duration_cast<std::chrono::microseconds>
           (std::chrono::steady_clock::now() - start_time).count() / 1000000.0;
-    std::cout << "the kernel took " << time_in_seconds << std::endl; 
+    std::cout << "the kernel took " << time_in_seconds << " seconds." << std::endl; 
     //get result and write it to file
     my_command_queue.enqueueReadBuffer(c_buffer,                    //buffer
                                        CL_TRUE,                     //blocking
