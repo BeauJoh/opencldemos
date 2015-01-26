@@ -6,7 +6,8 @@ import (
     "os"                                //for argument parsing
     "math"                              //for generating signals
     "io/ioutil"                         //for file reading (kernel source)
-                                        //for measuring elapsed time
+    "bufio"                             //for file writing (vecadd_result.dat)
+    "time"                              //for measuring elapsed time
     "github.com/BeauJoh/go-opencl/cl"   //for opencl
 )
 
@@ -152,6 +153,7 @@ func main() {
     my_kernel_source, err := ioutil.ReadFile("../kernels/vec_add.cl");
     if err != nil {
         fmt.Printf("Failed to read kernel source file: %+v", err)
+        os.Exit(-1)
     }
     my_kernel_sources := make([]string,1)
     my_kernel_sources[0] = string(my_kernel_source)
@@ -159,16 +161,19 @@ func main() {
         my_context.CreateProgramWithSource(my_kernel_sources)
     if err != nil {
         fmt.Printf("Failed to create program from kernel source: %+v", err)
+        os.Exit(-1)
     }
     err = my_program.BuildProgram(my_device_list,
                                   "");            //options
     if err != nil {
         fmt.Printf("Failed to build program: %+v", err)
+        os.Exit(-1)
     }
 
     my_kernel, err := my_program.CreateKernel("VecAdd")
     if err != nil {
         fmt.Printf("Failed to create kernel: %+v", err)
+        os.Exit(-1)
     }
 
     //generate and populate memory buffers
@@ -176,49 +181,58 @@ func main() {
                                                     a               )//data
     if err != nil {
         fmt.Printf("Failed to create buffer (a): %+v", err)
+        os.Exit(-1)
     }
     b_buffer, err := my_context.CreateBufferFloat32(cl.MemUseHostPtr,//flag
                                                     b               )//data
     if err != nil {
         fmt.Printf("Failed to create buffer (b): %+v", err)
+        os.Exit(-1)
     }
     c_buffer, err := my_context.CreateEmptyBufferFloat32(cl.MemWriteOnly,//flag
                                                          len(c)         )//data
     if err != nil {
         fmt.Printf("Failed to create buffer (c): %+v", err)
+        os.Exit(-1)
     }
 
     //set kernel arguments 
     err = my_kernel.SetArgBuffer(0,a_buffer)
     if err != nil {
         fmt.Printf("Failed to set kernel argument buffer (a): %+v", err)
+        os.Exit(-1)
     }
     err = my_kernel.SetArgBuffer(1,b_buffer)
     if err != nil {
         fmt.Printf("Failed to set kernel argument buffer (b): %+v", err)
+        os.Exit(-1)
     }
     err = my_kernel.SetArgBuffer(2,c_buffer)
     if err != nil {
         fmt.Printf("Failed to set kernel argument buffer (c): %+v", err)
+        os.Exit(-1)
     }
     err = my_kernel.SetArgUint32(3,signal_length)
     if err != nil {
         fmt.Printf("Failed to set kernel argument signal_length: %+v", err)
+        os.Exit(-1)
     }
 
     global_work_size := make([]int,1)
     global_work_size[0] = int(signal_length)
-    local_work_size := make([]int,1)
-    local_work_size[0] = 1;
+
+    //start the timer
+    start_time := time.Now()
 
     //execute the kernel
     _, err = my_command_queue.EnqueueNDRangeKernel(my_kernel,          //kernel
                                                    nil,                //offset
                                                    global_work_size,   //global
-                                                   local_work_size,    // local
+                                                   nil,                // local
                                                    nil)           //events list
     if err != nil {
         fmt.Printf("Failed to enqueue the kernel: %+v", err)
+        os.Exit(-1)
     }
 
     //wait for execution
@@ -227,6 +241,10 @@ func main() {
         fmt.Printf("Failed to finish on the command queue: %+v", err)
         os.Exit(-1)
     }
+
+    //stop the timer
+    time_taken := time.Since(start_time)
+    fmt.Println("the kernel took", time_taken.Seconds())
 
     //get result and write it to file
     _, err = my_command_queue.EnqueueReadBufferFloat32(c_buffer,   //buffer
@@ -237,7 +255,25 @@ func main() {
     if err != nil {
         fmt.Printf("Failed to enqueue read (c): %+v", err)
     }
-    for _,val := range c {
-        fmt.Println(val)
+
+    file_handle, err := os.Create("vecadd_result.dat")
+    if err != nil {
+        fmt.Printf("Failed to create file (vecadd_result.dat): %+v", err)
+        os.Exit(-1)
     }
+    defer file_handle.Close()
+    file_writer := bufio.NewWriter(file_handle)
+    for _,val := range c {
+        fmt.Fprintf(file_writer,"%f ",val)
+    }
+
+    //cleanup (though this would be done later by the go runtime)
+    a_buffer.Release()
+    b_buffer.Release()
+    c_buffer.Release()
+    my_kernel.Release()
+    my_program.Release()
+    my_command_queue.Release()
+    my_context.Release()
+
 }
