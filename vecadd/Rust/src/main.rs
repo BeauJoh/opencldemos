@@ -102,24 +102,24 @@ fn main() {
     let signal_length = 2.pow(22);
     let increment_size = 1.0/(signal_length as f32);
 
-    let mut a_vec:Vec<f32> = Vec::with_capacity(signal_length);
-    let mut b_vec:Vec<f32> = Vec::with_capacity(signal_length);
-    let mut c_vec:Vec<f32> = Vec::with_capacity(signal_length);
-    //populate a_vec
+    let mut a:Vec<f32> = Vec::with_capacity(signal_length);
+    let mut b:Vec<f32> = Vec::with_capacity(signal_length);
+    let mut c:Vec<f32> = Vec::with_capacity(signal_length);
+    //populate a
     let mut i = 0.0;
     while i < 1.0 {
-        a_vec.push(i);
+        a.push(i);
         i += increment_size;
     }
-    //populate b_vec
+    //populate b
     i = 1.0;
     while i > 0.0 {
-        b_vec.push(i);
+        b.push(i);
         i -= increment_size;
     }
-    //populate c_vec
+    //populate c
     for i in range(0,signal_length) {
-        c_vec.push(0.0);
+        c.push(0.0);
     }
 
 /*#############################################################################
@@ -139,23 +139,23 @@ fn main() {
     let my_kernel = my_program.create_kernel("VecAdd");
 
     //generate memory buffers
-    let a: CLBuffer<f32> =
-        my_context.create_buffer(a_vec.len(),                   //size
+    let a_buffer: CLBuffer<f32> =
+        my_context.create_buffer(a.len(),                   //size
                                  opencl::cl::CL_MEM_READ_ONLY); //flags
-    let b: CLBuffer<f32> =
-        my_context.create_buffer(b_vec.len(),opencl::cl::CL_MEM_READ_ONLY);   
-    let mut c: CLBuffer<f32> =
-        my_context.create_buffer(c_vec.len(),opencl::cl::CL_MEM_WRITE_ONLY);   
+    let b_buffer: CLBuffer<f32> =
+        my_context.create_buffer(b.len(),opencl::cl::CL_MEM_READ_ONLY);   
+    let mut c_buffer: CLBuffer<f32> =
+        my_context.create_buffer(c.len(),opencl::cl::CL_MEM_WRITE_ONLY);   
      
     //populate memory buffers
-    my_command_queue.write(&a,&&a_vec[],());
-    my_command_queue.write(&b,&&b_vec[],());
-    my_command_queue.write(&c,&&c_vec[],());
+    my_command_queue.write(&a_buffer,&&a[],());
+    my_command_queue.write(&b_buffer,&&b[],());
+    my_command_queue.write(&c_buffer,&&c[],());
 
     //set kernel arguments
-    my_kernel.set_arg(0,&a);
-    my_kernel.set_arg(1,&b);
-    my_kernel.set_arg(2,&c);
+    my_kernel.set_arg(0,&a_buffer);
+    my_kernel.set_arg(1,&b_buffer);
+    my_kernel.set_arg(2,&c_buffer);
     my_kernel.set_arg(3,&signal_length);
     
     //execute the kernel
@@ -169,10 +169,10 @@ fn main() {
     //         (event.start_time() - event.end_time()));
     
     //get results and write to file
-    c_vec = my_command_queue.get(&c,&event);
+    c = my_command_queue.get(&c_buffer,&event);
     let file_handle = File::create(&Path::new("vecadd_result.dat")).unwrap();
     let mut file_writer = BufferedWriter::new(file_handle);
-    for i in c_vec.iter() {
+    for i in c.iter() {
         write!(&mut file_writer, "{} ", i);
     }
     return;
