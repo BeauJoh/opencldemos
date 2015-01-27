@@ -1,8 +1,9 @@
 extern crate opencl;
 
-use std::os;                //for command line parsing
-use std::num::Int;          //for generating signals
-use opencl::hl;             //for opencl
+use std::os;                        //for command line parsing
+use std::num::Int;                  //for generating signals
+use std::io::{BufferedWriter, File};//for writing results to file
+use opencl::hl;                     //for opencl
 use opencl::mem::CLBuffer;
 
 fn main() {
@@ -169,8 +170,10 @@ fn main() {
     
     //get results and write to file
     c_vec = my_command_queue.get(&c,&event);
+    let file_handle = File::create(&Path::new("vecadd_result.dat")).unwrap();
+    let mut file_writer = BufferedWriter::new(file_handle);
     for i in c_vec.iter() {
-        println!("{} ",i);
+        write!(&mut file_writer, "{} ", i);
     }
     return;
 }
