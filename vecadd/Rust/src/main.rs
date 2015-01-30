@@ -163,10 +163,10 @@ fn main() {
     let start_time = time::precise_time_s(); 
 
     //execute the kernel
-    let event = my_command_queue.enqueue_async_kernel(&my_kernel,   //kernel
-                                                      signal_length,//global
-                                                      None,         //local
-                                                      ());          //wait_on
+    let event = my_command_queue.enqueue_kernel(&my_kernel,   //kernel
+                                                signal_length,//global
+                                                None,         //local
+                                                ());          //wait_on
    
     //wait for execution
     let time_taken = time::precise_time_s() - start_time; 
