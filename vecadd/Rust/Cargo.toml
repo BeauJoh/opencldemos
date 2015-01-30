@@ -8,5 +8,5 @@ authors = ["Beau Johnston <beau@inbeta.org>"]
 time = "*"
 
 [dependencies.opencl]
-git = "https://github.com/luqmana/rust-opencl.git"
+git = "https://github.com/bfops/rust-opencl.git"
 

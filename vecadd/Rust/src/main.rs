@@ -1,11 +1,11 @@
 extern crate opencl;
 extern crate time;
 
-use std::os;                        //for command line parsing
-use std::num::Int;                  //for generating signals
-use std::io::{BufferedWriter, File};//for writing results to file
-use time;                           //for timing kernel execution
-use opencl::hl;                     //for opencl
+use std::os;                            //for command line parsing
+use std::num::Int;                      //for generating signals
+use std::old_io::{BufferedWriter, File};//for writing results to file
+use time::*;                            //for timing kernel execution
+use opencl::hl;                         //for opencl
 use opencl::mem::CLBuffer;
 
 fn main() {
@@ -160,7 +160,7 @@ fn main() {
     my_kernel.set_arg(2,&c_buffer);
     my_kernel.set_arg(3,&signal_length);
 
-    let start_time = time::now(); 
+    let start_time = time::precise_time_s(); 
 
     //execute the kernel
     let event = my_command_queue.enqueue_async_kernel(&my_kernel,   //kernel
@@ -169,8 +169,8 @@ fn main() {
                                                       ());          //wait_on
    
     //wait for execution
-    let time_taken = time::now() - start_time; 
-    println!("kernel took {} seconds.",time_taken.seconds());
+    let time_taken = time::precise_time_s() - start_time; 
+    println!("kernel took {} seconds.",time_taken);
     
     //get results and write to file
     c = my_command_queue.get(&c_buffer,&event);
