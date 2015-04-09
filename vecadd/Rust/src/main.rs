@@ -1,19 +1,34 @@
 extern crate opencl;
 extern crate time;
 
-use std::os;                            //for command line parsing
-use std::num::Int;                      //for generating signals
-use std::old_io::{BufferedWriter, File};//for writing results to file
+//use std::num::Int;                    //pow for generating signals
+use std::fs::File;                      //for writing results to file
+use std::io::prelude::*;                //
+use std::env;                           //for command line parsing
 use time::*;                            //for timing kernel execution
 use opencl::hl;                         //for opencl
-use opencl::mem::CLBuffer;
+use opencl::mem::CLBuffer;              //
 
 fn main() {
 
 /*#############################################################################
 #command line parsing
 #############################################################################*/
-    if os::args().len() != 3 {
+    let mut my_args = vec![];           //set up an empty vector (argv)
+    for this_arg in env::args_os() {    //convert each os_string into a string
+        match this_arg.into_string() {  //and store in my_args
+            Ok(v) => {
+                my_args.push(v);
+            }
+            Err(e) => {
+                println!("Error: could not parse command line argument {:?}",
+                         e);
+                return; 
+            }   
+        }
+    }
+    
+    if my_args.len() != 3 {
         //list all platforms and devices
         println!("Correct usage is:");
         println!("\t ./vecadd <platform no.> <device no.>");
@@ -52,24 +67,33 @@ fn main() {
         return;   
     }
     
-    //if it made it here the correct arguments are given, so lets collect them.
+    //if we made it here the correct arguments are given, so lets collect them.
     let target_platform_id;
-    let mut my_parse_result = os::args()[1].clone().parse::<usize>();
-    if my_parse_result == None{
-        println!("Error: {} not a valid platform no.", os::args()[1]);
-        return;
-    } else {
-        target_platform_id = my_parse_result.unwrap(); 
+    let mut my_parse_result = my_args[1].parse::<usize>();
+    match my_parse_result {
+        Ok(v) => {
+            target_platform_id = v; 
+        }
+        Err(e) => {
+            println!("Error: {} not a valid platform no.", my_args[1]);
+            println!("failed with: {}", e);
+            return;
+        }
     }
 
     let target_device_id;
-    my_parse_result = os::args()[2].clone().parse::<usize>();
-    if my_parse_result == None{
-        println!("Error: {} not a valid device no.", os::args()[2]);
-        return;
-    } else {
-        target_device_id = my_parse_result.unwrap(); 
+    my_parse_result = my_args[2].parse::<usize>();
+    match my_parse_result {
+        Ok(v) => {
+            target_device_id = v; 
+        }
+        Err(e) => {
+            println!("Error: {} not a valid device no.", my_args[2]);
+            println!("failed with: {}", e);
+            return;
+        }
     }
+    println!("platform id {} device id {}",target_device_id,target_device_id);
     
     //finish with the platform layer by creating a device context
     let my_platforms = hl::get_platforms();
@@ -101,7 +125,9 @@ fn main() {
 /*#############################################################################
 # generate input signals
 #############################################################################*/
-    let signal_length = 2.pow(22);
+
+    //let signal_length = 2.pow(22);
+    let signal_length = 4194304;
     let increment_size = 1.0/(signal_length as f32);
 
     let mut a:Vec<f32> = Vec::with_capacity(signal_length);
@@ -120,8 +146,10 @@ fn main() {
         i -= increment_size;
     }
     //populate c
-    for i in range(0,signal_length) {
+    let mut j = 0;
+    while j < signal_length {
         c.push(0.0);
+        j += 1;
     }
 
 /*#############################################################################
@@ -137,7 +165,9 @@ fn main() {
     //load and compile kernel
     let my_kernel_source = include_str!("../../kernels/vec_add.cl");
     let my_program = my_context.create_program_from_source(my_kernel_source);
-    my_program.build(my_device);
+    let build_status = my_program.build(my_device);
+    assert_eq!(build_status.err(), None); //ensure the kernel compiles
+    
     let my_kernel = my_program.create_kernel("VecAdd");
 
     //generate memory buffers
@@ -146,13 +176,13 @@ fn main() {
                                  opencl::cl::CL_MEM_READ_ONLY); //flags
     let b_buffer: CLBuffer<f32> =
         my_context.create_buffer(b.len(),opencl::cl::CL_MEM_READ_ONLY);   
-    let mut c_buffer: CLBuffer<f32> =
+    let c_buffer: CLBuffer<f32> =
         my_context.create_buffer(c.len(),opencl::cl::CL_MEM_WRITE_ONLY);   
      
     //populate memory buffers
-    my_command_queue.write(&a_buffer,&&a[],());
-    my_command_queue.write(&b_buffer,&&b[],());
-    my_command_queue.write(&c_buffer,&&c[],());
+    my_command_queue.write(&a_buffer,&&a[..],());
+    my_command_queue.write(&b_buffer,&&b[..],());
+    my_command_queue.write(&c_buffer,&&c[..],());
 
     //set kernel arguments
     my_kernel.set_arg(0,&a_buffer);
@@ -174,10 +204,22 @@ fn main() {
     
     //get results and write to file
     c = my_command_queue.get(&c_buffer,&event);
-    let file_handle = File::create(&Path::new("vecadd_result.dat")).unwrap();
-    let mut file_writer = BufferedWriter::new(file_handle);
-    for i in c.iter() {
-        write!(&mut file_writer, "{} ", i);
+    
+    let mut file_handle;
+    match File::create("vecadd_result.dat") {
+        Ok(v) => {
+            file_handle = v;
+        }
+        Err(e) => {
+            println!("Failed to open vecadd_result.dat for writing!");
+            println!("With error: {}", e);
+            return;
+        }
     }
+    for i in c.iter() {
+        write!(&mut file_handle, "{} ", i);
+    }
+    
     return;
+
 }
