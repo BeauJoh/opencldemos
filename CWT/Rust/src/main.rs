@@ -126,29 +126,44 @@ fn main() {
 # generate input signals
 #############################################################################*/
 
-    //let signal_length = 2.pow(22);
-    let signal_length = 4194304;
-    let increment_size = 1.0/(signal_length as f32);
-
+    //let signal_length = 2.pow(8);
+    let signal_length = 256;
+    let cwt_length = signal_length*signal_length;
+    
+    let mut fx:Vec<f32> = Vec::with_capacity(signal_length);
     let mut a:Vec<f32> = Vec::with_capacity(signal_length);
     let mut b:Vec<f32> = Vec::with_capacity(signal_length);
-    let mut c:Vec<f32> = Vec::with_capacity(signal_length);
-    //populate a
+    let mut cwt:Vec<f32> = Vec::with_capacity(cwt_length);
+    
+    //populate fx 
+    //fx = range(0.0, 1.0, 1.0/signal_length)
     let mut i = 0.0;
+    let mut increment_size = 1.0/(signal_length as f32);
     while i < 1.0 {
+        fx.push(i);
+        i += increment_size;
+    }
+    //populate a
+    //a = range(0.01, 0.10, (0.10-0.01)/signal_length)
+    i = 0.01;
+    increment_size = (0.10-0.01)/(signal_length as f32);
+    while i < 0.10 {
         a.push(i);
         i += increment_size;
     }
     //populate b
-    i = 1.0;
-    while i > 0.0 {
+    //b = range(-1.0, 1.0, 2.0/signal_length)
+    i = -1.0;
+    increment_size = 2.0/(signal_length as f32);
+    while i < 1.0 {
         b.push(i);
-        i -= increment_size;
+        i += increment_size;
     }
-    //populate c
+    //populate cwt
+    //cwt = zeros(signal_length*signal_length)
     let mut j = 0;
-    while j < signal_length {
-        c.push(0.0);
+    while j < cwt_length {
+        cwt.push(0.0);
         j += 1;
     }
 
@@ -163,32 +178,40 @@ fn main() {
 #############################################################################*/
 
     //load and compile kernel
-    let my_kernel_source = include_str!("../../kernels/vec_add.cl");
+    let my_kernel_source = include_str!("../../kernels/cwt.cl");
     let my_program = my_context.create_program_from_source(my_kernel_source);
     let build_status = my_program.build(my_device);
     assert_eq!(build_status.err(), None); //ensure the kernel compiles
     
-    let my_kernel = my_program.create_kernel("VecAdd");
+    let my_kernel = my_program.create_kernel("ContinuousWaveletTransform");
 
     //generate memory buffers
+    let fx_buffer: CLBuffer<f32> =
+        my_context.create_buffer(fx.len(),                      //size
+                                 opencl::cl::CL_MEM_READ_ONLY); //flags
     let a_buffer: CLBuffer<f32> =
-        my_context.create_buffer(a.len(),                   //size
+        my_context.create_buffer(a.len(),                       //size
                                  opencl::cl::CL_MEM_READ_ONLY); //flags
     let b_buffer: CLBuffer<f32> =
         my_context.create_buffer(b.len(),opencl::cl::CL_MEM_READ_ONLY);   
-    let c_buffer: CLBuffer<f32> =
-        my_context.create_buffer(c.len(),opencl::cl::CL_MEM_WRITE_ONLY);   
+    let cwt_buffer: CLBuffer<f32> =
+        my_context.create_buffer(cwt.len(),opencl::cl::CL_MEM_WRITE_ONLY);   
      
     //populate memory buffers
+    my_command_queue.write(&fx_buffer,&&fx[..],());
     my_command_queue.write(&a_buffer,&&a[..],());
     my_command_queue.write(&b_buffer,&&b[..],());
-    my_command_queue.write(&c_buffer,&&c[..],());
+    my_command_queue.write(&cwt_buffer,&&cwt[..],());
 
     //set kernel arguments
-    my_kernel.set_arg(0,&a_buffer);
-    my_kernel.set_arg(1,&b_buffer);
-    my_kernel.set_arg(2,&c_buffer);
-    my_kernel.set_arg(3,&signal_length);
+    my_kernel.set_arg(0,&fx_buffer);    //fx_data
+    my_kernel.set_arg(1,&signal_length);//fx_length
+    my_kernel.set_arg(2,&a_buffer);     //a_data
+    my_kernel.set_arg(3,&signal_length);//a_length
+    my_kernel.set_arg(4,&b_buffer);     //b_data
+    my_kernel.set_arg(5,&signal_length);//b_length
+    my_kernel.set_arg(6,&cwt_buffer);   //cwt_data
+    my_kernel.set_arg(7,&signal_length);//cwt_cols
 
     let start_time = time::precise_time_s(); 
 
@@ -203,21 +226,23 @@ fn main() {
     println!("kernel took {} seconds.",time_taken);
     
     //get results and write to file
-    c = my_command_queue.get(&c_buffer,&event);
+    cwt = my_command_queue.get(&cwt_buffer,&event);
     
     let mut file_handle;
-    match File::create("vecadd_result.dat") {
+    match File::create("cwt_result.dat") {
         Ok(v) => {
             file_handle = v;
         }
         Err(e) => {
-            println!("Failed to open vecadd_result.dat for writing!");
+            println!("Failed to open cwt_result.dat for writing!");
             println!("With error: {}", e);
             return;
         }
     }
-    for i in c.iter() {
-        write!(&mut file_handle, "{} ", i);
+    for i in 0 .. a.len() {
+        for j in 0 .. b.len(){
+            write!(&mut file_handle, "{} ", cwt[i*(a.len()) + j]);
+        }
     }
     
     return;
